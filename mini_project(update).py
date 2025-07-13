@@ -5,20 +5,18 @@ from enum import Enum
 from typing import List, Dict, Optional
 from collections import defaultdict
 
-
+# Переліки (Enums) для гри
 class ItemType(Enum):
     WEAPON = "Зброя"
     ARMOR = "Броня"
     POTION = "Зілля"
     ACCESSORY = "Аксесуар"
 
-
 class ItemQuality(Enum):
     COMMON = "Звичайний"
     RARE = "Рідкісний"
     EPIC = "Епічний"
     LEGENDARY = "Легендарний"
-
 
 class DamageType(Enum):
     PHYSICAL = "Фізична"
@@ -27,7 +25,6 @@ class DamageType(Enum):
     POISON = "Отруйна"
     MAGICAL = "Магічна"
 
-
 class EffectType(Enum):
     REGEN = "Регенерація"
     BURN = "Горіння"
@@ -35,13 +32,18 @@ class EffectType(Enum):
     POISON = "Отрута"
     STUN = "Оглушення"
 
-
 class CharacterClass(Enum):
     WARRIOR = "Воїн"
     MAGE = "Маг"
     ROGUE = "Розбійник"
 
+class WeatherType(Enum):
+    CLEAR = "Ясно"
+    RAIN = "Дощ"
+    STORM = "Гроза"
+    FOG = "Туман"
 
+# Клас ефектів
 class Effect:
     def __init__(self, effect_type: EffectType, duration: int, power: float):
         self.effect_type = effect_type
@@ -63,7 +65,7 @@ class Effect:
             power=data["power"]
         )
 
-
+# Клас зачарувань
 class Enchantment:
     def __init__(self, name: str, effect_type: EffectType, power: float):
         self.name = name
@@ -85,10 +87,11 @@ class Enchantment:
             power=data["power"]
         )
 
-
+# Клас предметів
 class Item:
-    def __init__(self, name: str, item_type: ItemType, power: float, value: int, quality: ItemQuality, item_set=None,
-                 enchantment: Optional[Enchantment] = None, damage_type: Optional[DamageType] = None):
+    def __init__(self, name: str, item_type: ItemType, power: float, value: int,
+                 quality: ItemQuality, item_set=None, enchantment: Optional[Enchantment] = None,
+                 damage_type: Optional[DamageType] = None):
         self.name = name
         self.item_type = item_type
         self.power = power
@@ -102,24 +105,30 @@ class Item:
         return f"{self.name} ({self.item_type.value}, {self.quality.value}, Сила: {self.power}, Вартість: {self.value})"
 
     def to_dict(self):
-        return {
+        data = {
             "name": self.name,
             "item_type": self.item_type.name,
             "power": self.power,
             "value": self.value,
             "quality": self.quality.name,
-            "item_set": self.item_set.name if self.item_set else None,
             "enchantment": self.enchantment.to_dict() if self.enchantment else None,
             "damage_type": self.damage_type.name if self.damage_type else None
         }
+        if hasattr(self.item_set, 'name'):
+            data["item_set"] = self.item_set.name
+        else:
+            data["item_set"] = None
+        return data
 
     @classmethod
     def from_dict(cls, data):
         item_set = None
         if data["item_set"]:
             item_set = type("ItemSet", (), {"name": data["item_set"]})()
+
         enchantment = Enchantment.from_dict(data["enchantment"]) if data["enchantment"] else None
         damage_type = DamageType[data["damage_type"]] if data["damage_type"] else None
+
         return cls(
             name=data["name"],
             item_type=ItemType[data["item_type"]],
@@ -131,7 +140,7 @@ class Item:
             damage_type=damage_type
         )
 
-
+# Клас персонажа
 class Character:
     def __init__(self, nickname: str, char_class: CharacterClass):
         self.nickname = nickname
@@ -149,150 +158,14 @@ class Character:
         self.equipped_items: Dict[ItemType, Item] = {}
         self.active_effects: List[Effect] = []
         self.skills = ["Сильний удар", "Захист"] if char_class == CharacterClass.WARRIOR else \
-            ["Вогняна куля", "Магічний щит"] if char_class == CharacterClass.MAGE else \
-                ["Постріл у спину", "Отруєне лезо"]
+                      ["Вогняна куля", "Магічний щит"] if char_class == CharacterClass.MAGE else \
+                      ["Постріл у спину", "Отруєне лезо"]
         self.skill_levels = {skill: 1 for skill in self.skills}
         self.reputation = {"Лицарі": 0, "Маги": 0, "Торговці": 0}
         self.active_quests = []
 
     def __str__(self):
         return f"{self.nickname} ({self.char_class.value}, Рівень {self.level}, HP: {self.hp}/{self.max_hp}, Мана: {self.mana}/{self.max_mana})"
-
-    def calculate_damage(self):
-        base_damage = self.attack_power
-        for item in self.equipped_items.values():
-            base_damage += item.power
-        return base_damage
-
-    def calculate_defense(self, damage_type: Optional[DamageType] = None):
-        base_defense = self.defense
-        for item in self.equipped_items.values():
-            base_defense += item.power
-        return base_defense
-
-    def apply_effect(self, effect: Effect):
-        self.active_effects.append(effect)
-        print(f"{self.nickname} отримує ефект {effect.effect_type.value} на {effect.duration} раундів!")
-
-    def update_effects(self):
-        expired = []
-        for effect in self.active_effects:
-            effect.duration -= 1
-            if effect.effect_type == EffectType.REGEN:
-                self.hp = min(self.max_hp, self.hp + effect.power)
-                print(f"{self.nickname} відновлює {effect.power} HP через {effect.effect_type.value}!")
-            elif effect.effect_type == EffectType.BURN:
-                self.hp -= effect.power
-                print(f"{self.nickname} отримує {effect.power} шкоди від {effect.effect_type.value}!")
-            elif effect.effect_type == EffectType.POISON:
-                self.hp -= effect.power
-                print(f"{self.nickname} отримує {effect.power} шкоди від {effect.effect_type.value}!")
-            if effect.duration <= 0:
-                expired.append(effect)
-        self.active_effects = [e for e in self.active_effects if e not in expired]
-        self.hp = max(0, self.hp)
-
-    def add_exp(self, exp: int):
-        self.exp += exp
-        print(f"{self.nickname} отримує {exp} досвіду!")
-        while self.exp >= self.level * 100:
-            self.level += 1
-            self.max_hp += 10
-            self.hp = self.max_hp
-            self.max_mana += 5
-            self.mana = self.max_mana
-            self.attack_power += 2
-            self.defense += 1
-            print(f"{self.nickname} досяг рівня {self.level}!")
-
-    def equip_item(self, item: Item) -> bool:
-        if item.item_type not in [ItemType.WEAPON, ItemType.ARMOR, ItemType.ACCESSORY]:
-            print(f"Предмет {item.name} не можна екіпірувати!")
-            return False
-        self.equipped_items[item.item_type] = item
-        print(f"{self.nickname} екіпірував {item.name}!")
-        return True
-
-    def use_item(self, item: Item) -> bool:
-        if item.item_type != ItemType.POTION:
-            print(f"Предмет {item.name} не є зіллям!")
-            return False
-        self.hp = min(self.max_hp, self.hp + item.power)
-        self.inventory.remove(item)
-        print(f"{self.nickname} використав {item.name} і відновив {item.power} HP!")
-        return True
-
-    def attack(self, target: 'Character') -> bool:
-        if any(e.effect_type == EffectType.STUN for e in self.active_effects):
-            print(f"{self.nickname} оглушений і пропускає хід!")
-            return False
-        if any(e.effect_type == EffectType.FREEZE for e in self.active_effects):
-            print(f"{self.nickname} заморожений і пропускає хід!")
-            return False
-        damage = self.calculate_damage()
-        defense = target.calculate_defense()
-        actual_damage = max(1, damage - defense * 0.5)
-        target.hp -= actual_damage
-        print(f"{self.nickname} атакує {target.nickname} і завдає {actual_damage:.1f} шкоди!")
-        return True
-
-    def use_skill(self, skill_name: str, targets: List['Character'], game: 'Game') -> bool:
-        skill_effects = {
-            "Сильний удар": lambda: ("завдає потужного удару", None, 1.5 * self.skill_levels.get("Сильний удар", 1),
-                                     DamageType.PHYSICAL),
-            "Захист": lambda: ("піднімає щит", Effect(EffectType.REGEN, 3, 5 * self.skill_levels.get("Захист", 1)), 0,
-                               None),
-            "Розгром": lambda: ("розмахує зброєю по всіх ворогах", None, 1.2 * self.skill_levels.get("Розгром", 1),
-                                DamageType.PHYSICAL),
-            "Вогняна куля": lambda: ("кидає вогняну кулю",
-                                     Effect(EffectType.BURN, 2, 3 * self.skill_levels.get("Вогняна куля", 1)),
-                                     1.2 * self.skill_levels.get("Вогняна куля", 1), DamageType.FIRE),
-            "Морозний поцілунок": lambda: ("заморожує ворога", Effect(EffectType.FREEZE, 1, 0),
-                                           0.8 * self.skill_levels.get("Морозний поцілунок", 1), DamageType.ICE),
-            "Магічний щит": lambda: ("створює магічний бар'єр",
-                                     Effect(EffectType.REGEN, 2, 3 * self.skill_levels.get("Магічний щит", 1)), 0,
-                                     None),
-            "Лікування": lambda: ("лікує союзників",
-                                  Effect(EffectType.REGEN, 2, 10 * self.skill_levels.get("Лікування", 1)), 0, None),
-            "Божественний щит": lambda: ("створює захисний бар'єр", None, 0, None),
-            "Очищення": lambda: ("знімає негативні ефекти", None, 0, None),
-            "Стіна щитів": lambda: ("блокує атаки", None, 0, None),
-            "Протиудар": lambda: ("контратакує", None, 1.3 * self.skill_levels.get("Протиудар", 1),
-                                  DamageType.PHYSICAL),
-            "Землетрус": lambda: ("викликає землетрус", Effect(EffectType.STUN, 1, 0),
-                                  1.0 * self.skill_levels.get("Землетрус", 1), DamageType.PHYSICAL),
-            "Постріл у спину": lambda: ("атакує з прихованої позиції", None,
-                                        1.8 * self.skill_levels.get("Постріл у спину", 1), DamageType.PHYSICAL),
-            "Отруєне лезо": lambda: ("отруює ворога",
-                                     Effect(EffectType.POISON, 3, 4 * self.skill_levels.get("Отруєне лезо", 1)), 1.0,
-                                     DamageType.POISON),
-            "Тіньовий удар": lambda: ("атакує з тіні", None, 1.5 * self.skill_levels.get("Тіньовий удар", 1),
-                                      DamageType.MAGICAL)
-        }
-
-        if skill_name not in self.skills:
-            print(f"{self.nickname} не знає навички {skill_name}!")
-            return False
-
-        description, effect, multiplier, damage_type = skill_effects[skill_name]()
-        print(f"{self.nickname} {description}!")
-
-        used_elements = [damage_type] if damage_type else []
-        for target in targets:
-            if multiplier > 0:
-                damage = self.calculate_damage() * multiplier
-                defense = target.calculate_defense(damage_type) if damage_type else 0
-                actual_damage = max(1, damage - defense * 0.5)
-                target.hp -= actual_damage
-                print(
-                    f"Завдано {actual_damage:.1f} {damage_type.value if damage_type else ''} шкоди {target.nickname}!")
-            if effect:
-                target.apply_effect(effect)
-
-        if used_elements:
-            game.apply_elemental_combo(self, targets, used_elements)
-
-        return True
 
     def to_dict(self):
         return {
@@ -334,10 +207,102 @@ class Character:
         character.skills = data["skills"]
         character.skill_levels = data["skill_levels"]
         character.reputation = data["reputation"]
-        # active_quests will be restored after loading quests
         return character
 
+    def apply_effect(self, effect: Effect):
+        self.active_effects.append(effect)
 
+    def update_effects(self):
+        for effect in self.active_effects[:]:
+            effect.duration -= 1
+            if effect.effect_type == EffectType.BURN:
+                self.hp -= effect.power
+            elif effect.effect_type == EffectType.POISON:
+                self.hp -= effect.power
+            elif effect.effect_type == EffectType.REGEN:
+                self.hp += effect.power
+            if effect.duration <= 0:
+                self.active_effects.remove(effect)
+
+    def add_exp(self, exp: int):
+        self.exp += exp
+        while self.exp >= self.level * 100:
+            self.exp -= self.level * 100
+            self.level += 1
+            self.max_hp += 20
+            self.max_mana += 10
+            self.attack_power += 5
+            self.defense += 2
+            print(f"{self.nickname} підвищив рівень до {self.level}!")
+
+    def attack(self, target: 'Character'):
+        damage = self.attack_power - target.defense
+        if damage > 0:
+            target.hp -= damage
+            print(f"{self.nickname} атакує {target.nickname} і завдає {damage} шкоди!")
+        else:
+            print(f"{self.nickname} атакує {target.nickname}, але не завдає шкоди!")
+
+    def use_skill(self, skill: str, targets: List['Character'], game: 'Game'):
+        if skill not in self.skills:
+            print(f"{self.nickname} не має навички {skill}!")
+            return
+        if self.mana < 10:
+            print(f"{self.nickname} не має достатньо мани для використання навички!")
+            return
+        self.mana -= 10
+        if skill == "Сильний удар":
+            for target in targets:
+                damage = self.attack_power * 1.5 - target.defense
+                if damage > 0:
+                    target.hp -= damage
+                    print(f"{self.nickname} використовує {skill} на {target.nickname} і завдає {damage} шкоди!")
+        elif skill == "Вогняна куля":
+            for target in targets:
+                damage = self.attack_power * 2 - target.defense
+                if damage > 0:
+                    target.hp -= damage
+                    target.apply_effect(Effect(EffectType.BURN, 3, 5))
+                    print(f"{self.nickname} використовує {skill} на {target.nickname}, завдає {damage} шкоди і підпалює!")
+        elif skill == "Постріл у спину":
+            for target in targets:
+                damage = self.attack_power * 2.5 - target.defense
+                if damage > 0:
+                    target.hp -= damage
+                    print(f"{self.nickname} використовує {skill} на {target.nickname} і завдає {damage} шкоди!")
+        elif skill == "Отруєне лезо":
+            for target in targets:
+                damage = self.attack_power * 1.2 - target.defense
+                if damage > 0:
+                    target.hp -= damage
+                    target.apply_effect(Effect(EffectType.POISON, 3, 5))
+                    print(f"{self.nickname} використовує {skill} на {target.nickname}, завдає {damage} шкоди і отруює!")
+        elif skill == "Захист":
+            self.defense += 10
+            print(f"{self.nickname} використовує {skill} і підвищує захист!")
+        elif skill == "Магічний щит":
+            self.defense += 15
+            print(f"{self.nickname} використовує {skill} і підвищує захист!")
+        game.apply_elemental_combo(self, targets, [self.equipped_items[ItemType.WEAPON].damage_type] if ItemType.WEAPON in self.equipped_items else [])
+
+    def use_item(self, item: Item):
+        if item.item_type == ItemType.POTION:
+            if "здоров'я" in item.name.lower():
+                self.hp = min(self.max_hp, self.hp + item.power)
+                print(f"{self.nickname} використовує {item.name} і відновлює {item.power} HP!")
+            elif "мани" in item.name.lower():
+                self.mana = min(self.max_mana, self.mana + item.power)
+                print(f"{self.nickname} використовує {item.name} і відновлює {item.power} мани!")
+            self.inventory.remove(item)
+
+    def equip_item(self, item: Item):
+        if item.item_type in self.equipped_items:
+            self.inventory.append(self.equipped_items[item.item_type])
+        self.equipped_items[item.item_type] = item
+        self.inventory.remove(item)
+        print(f"{self.nickname} екіпірує {item.name}")
+
+# Клас квестів
 class Quest:
     def __init__(self, id: str, title: str, description: str, objectives: Dict[str, int], rewards: Dict):
         self.id = id
@@ -346,14 +311,6 @@ class Quest:
         self.objectives = objectives
         self.rewards = rewards
         self.progress = {obj: 0 for obj in objectives}
-
-    def update_progress(self, objective: str, amount: int = 1):
-        if objective in self.progress:
-            self.progress[objective] += amount
-            print(f"Прогрес квесту '{self.title}': {objective} {self.progress[objective]}/{self.objectives[objective]}")
-
-    def is_completed(self) -> bool:
-        return all(self.progress[obj] >= goal for obj, goal in self.objectives.items())
 
     def to_dict(self):
         return {
@@ -385,14 +342,15 @@ class Quest:
             rewards=rewards
         )
 
+    def update_progress(self, objective: str):
+        if objective in self.progress:
+            self.progress[objective] += 1
+            print(f"Прогрес квесту '{self.title}': {objective} - {self.progress[objective]}/{self.objectives[objective]}")
 
-class WeatherType(Enum):
-    CLEAR = "Ясно"
-    RAIN = "Дощ"
-    STORM = "Гроза"
-    FOG = "Туман"
+    def is_completed(self):
+        return all(self.progress[obj] >= goal for obj, goal in self.objectives.items())
 
-
+# Клас погодної системи
 class WeatherSystem:
     def __init__(self):
         self.current_weather = WeatherType.CLEAR
@@ -403,20 +361,23 @@ class WeatherSystem:
             WeatherType.FOG: {"attack_power": -0.15, "defense": -0.1}
         }
 
-    def update_weather(self, location):
-        self.current_weather = random.choice(list(WeatherType))
-        print(f"Погода в локації {location.name}: {self.current_weather.value}")
-
-    def get_weather_effects(self):
-        return self.weather_effects[self.current_weather]
-
     def to_dict(self):
         return {"current_weather": self.current_weather.name}
 
     def from_dict(self, data):
         self.current_weather = WeatherType[data["current_weather"]]
 
+    def update_weather(self, location: 'Location'):
+        if location.name == "Пустеля":
+            self.current_weather = WeatherType.CLEAR
+        elif location.name == "Ліс":
+            self.current_weather = WeatherType.RAIN
+        elif location.name == "Гори":
+            self.current_weather = WeatherType.STORM
+        else:
+            self.current_weather = WeatherType.CLEAR
 
+# Клас локацій
 class Location:
     def __init__(self, name: str, battle_modifiers: Dict[str, float], description: str):
         self.name = name
@@ -438,24 +399,12 @@ class Location:
             description=data["description"]
         )
 
-
+# Клас гільдій
 class Guild:
     def __init__(self, name: str, members: List[Character] = None):
         self.name = name
         self.members = members or []
         self.reputation = 0
-
-    def add_member(self, character: Character):
-        if character not in self.members:
-            self.members.append(character)
-            print(f"{character.nickname} приєднався до гільдії {self.name}!")
-            character.reputation[self.name] = character.reputation.get(self.name, 0) + 10
-
-    def remove_member(self, character: Character):
-        if character in self.members:
-            self.members.remove(character)
-            print(f"{character.nickname} покинув гільдію {self.name}!")
-            character.reputation[self.name] = character.reputation.get(self.name, 0) - 10
 
     def to_dict(self):
         return {
@@ -468,16 +417,23 @@ class Guild:
     def from_dict(cls, data):
         return cls(name=data["name"], members=[])
 
+    def add_member(self, character: Character):
+        self.members.append(character)
+        print(f"{character.nickname} приєднався до гільдії {self.name}")
 
+    def remove_member(self, character: Character):
+        if character in self.members:
+            self.members.remove(character)
+            print(f"{character.nickname} покинув гільдію {self.name}")
+        else:
+            print(f"{character.nickname} не є членом гільдії {self.name}")
+
+# Клас фракцій
 class Faction:
     def __init__(self, name: str, relations: Dict[str, float], bonuses: Dict[str, float]):
         self.name = name
         self.relations = relations
         self.bonuses = bonuses
-
-    def update_relations(self, faction_name: str, amount: float):
-        self.relations[faction_name] = max(0.0, min(1.0, self.relations.get(faction_name, 0.5) + amount))
-        print(f"Відносини з {faction_name} змінено: {self.relations[faction_name]:.2f}")
 
     def to_dict(self):
         return {
@@ -494,37 +450,18 @@ class Faction:
             bonuses=data["bonuses"]
         )
 
+    def update_relations(self, other_faction: str, change: float):
+        if other_faction in self.relations:
+            self.relations[other_faction] = max(0.0, min(1.0, self.relations[other_faction] + change))
+            print(f"Відносини з {other_faction} оновлено до {self.relations[other_faction]:.2f}")
 
+# Клас гільдійських воєн
 class GuildWar:
     def __init__(self, guild1: Guild, guild2: Guild, stakes: Dict[str, float]):
         self.guild1 = guild1
         self.guild2 = guild2
         self.stakes = stakes
         self.winner = None
-
-    def resolve_war(self, game: 'Game') -> Optional[Guild]:
-        print(f"\n⚔️ Гільдійська війна: {self.guild1.name} проти {self.guild2.name}!")
-        guild1_power = sum(getattr(c, "attack_power", 0) + getattr(c, "defense", 0) for c in self.guild1.members)
-        guild2_power = sum(getattr(c, "attack_power", 0) + getattr(c, "defense", 0) for c in self.guild2.members)
-
-        if guild1_power > guild2_power * (1 + 0.1 * game.difficulty):
-            self.winner = self.guild1
-            print(f"Гільдія {self.guild1.name} перемогла!")
-        elif guild2_power > guild1_power * (1 + 0.1 * game.difficulty):
-            self.winner = self.guild2
-            print(f"Гільдія {self.guild2.name} перемогла!")
-        else:
-            print("Нічия у війні!")
-            return None
-
-        for char in self.winner.members:
-            char.gold += self.stakes.get("gold", 0)
-            char.add_exp(self.stakes.get("exp", 0))
-            char.reputation["Лицарі"] += self.stakes.get("reputation", 0)
-            print(
-                f"{char.nickname} отримав {self.stakes.get('gold', 0)} золота, {self.stakes.get('exp', 0)} досвіду та +{self.stakes.get('reputation', 0)} репутації!")
-
-        return self.winner
 
     def to_dict(self):
         return {
@@ -542,7 +479,38 @@ class GuildWar:
         war.winner = next((g for g in guilds if g.name == data["winner"]), None)
         return war
 
+    def resolve_war(self, game: 'Game'):
+        print(f"\nВійна між {self.guild1.name} і {self.guild2.name}!")
+        team1 = self.guild1.members
+        team2 = self.guild2.members
+        while team1 and team2:
+            for character in team1:
+                if character.hp > 0:
+                    target = random.choice(team2)
+                    character.attack(target)
+                    if target.hp <= 0:
+                        team2.remove(target)
+            for character in team2:
+                if character.hp > 0:
+                    target = random.choice(team1)
+                    character.attack(target)
+                    if target.hp <= 0:
+                        team1.remove(target)
+        if team1:
+            self.winner = self.guild1
+        elif team2:
+            self.winner = self.guild2
+        else:
+            print("Нічия!")
+            return
+        print(f"Переможець: {self.winner.name}")
+        for member in self.winner.members:
+            member.gold += self.stakes["gold"]
+            member.add_exp(self.stakes["exp"])
+            member.reputation["Лицарі"] += self.stakes["reputation"]
+            print(f"{member.nickname} отримує {self.stakes['gold']} золота, {self.stakes['exp']} досвіду і {self.stakes['reputation']} репутації!")
 
+# Клас стихійних ефектів
 class ElementalEffect:
     def __init__(self, name: str, elements: List[DamageType], effect: Effect):
         self.name = name
@@ -564,7 +532,7 @@ class ElementalEffect:
             effect=Effect.from_dict(data["effect"])
         )
 
-
+# Клас динамічних подій
 class DynamicEvent:
     def __init__(self, name: str, description: str, condition: callable, effect: callable, location: str = None):
         self.name = name
@@ -572,9 +540,6 @@ class DynamicEvent:
         self.condition = condition
         self.effect = effect
         self.location = location
-
-    def can_trigger(self, game: 'Game') -> bool:
-        return (not self.location or game.current_location.name == self.location) and self.condition(game)
 
     def to_dict(self):
         return {
@@ -593,8 +558,7 @@ class DynamicEvent:
         effects = {
             "Напад дракона": lambda g: [c.apply_effect(Effect(EffectType.BURN, 3, 10)) for c in g.characters],
             "Свято врожаю": lambda g: [c.add_exp(100) or setattr(c, 'gold', c.gold + 200) for c in g.characters],
-            "Магічний шторм": lambda g: [c.apply_effect(Effect(EffectType.STUN, 1, 0)) for c in g.characters if
-                                         c.char_class == CharacterClass.MAGE]
+            "Магічний шторм": lambda g: [c.apply_effect(Effect(EffectType.STUN, 1, 0)) for c in g.characters if c.char_class == CharacterClass.MAGE]
         }
         return cls(
             name=data["name"],
@@ -604,28 +568,15 @@ class DynamicEvent:
             location=data["location"]
         )
 
+    def can_trigger(self, game: 'Game'):
+        return self.condition(game) and (self.location is None or game.current_location.name == self.location)
 
+# Клас рецептів крафту
 class CraftingRecipe:
     def __init__(self, name: str, required_items: Dict[str, int], result: Item):
         self.name = name
         self.required_items = required_items
         self.result = result
-
-    def can_craft(self, inventory: List[Item]) -> bool:
-        item_counts = defaultdict(int)
-        for item in inventory:
-            item_counts[item.name] += 1
-        return all(item_counts.get(item, 0) >= count for item, count in self.required_items.items())
-
-    def craft(self, character: Character):
-        for item_name, count in self.required_items.items():
-            for _ in range(count):
-                for item in character.inventory[:]:
-                    if item.name == item_name:
-                        character.inventory.remove(item)
-                        break
-        character.inventory.append(self.result)
-        print(f"{character.nickname} створив {self.result.name}!")
 
     def to_dict(self):
         return {
@@ -642,7 +593,26 @@ class CraftingRecipe:
             result=Item.from_dict(data["result"])
         )
 
+    def can_craft(self, inventory: List[Item]):
+        item_counts = defaultdict(int)
+        for item in inventory:
+            item_counts[item.name] += 1
+        for item_name, count in self.required_items.items():
+            if item_counts[item_name] < count:
+                return False
+        return True
 
+    def craft(self, character: Character):
+        for item_name, count in self.required_items.items():
+            for _ in range(count):
+                for item in character.inventory:
+                    if item.name == item_name:
+                        character.inventory.remove(item)
+                        break
+        character.inventory.append(self.result)
+        print(f"{character.nickname} створив {self.result.name}!")
+
+# Основний клас гри
 class Game:
     def __init__(self):
         self.characters: List[Character] = []
@@ -673,6 +643,7 @@ class Game:
                 "effect": lambda g: [setattr(c, 'gold', max(0, c.gold - 20)) for c in g.characters]
             })()
         ]
+        # Ініціалізація всіх компонентів гри
         self._init_quests()
         self._init_item_sets()
         self._init_locations()
@@ -720,14 +691,13 @@ class Game:
         ))
 
     def _init_item_sets(self):
-        pass  # Already defined as simple objects in __init__
+        pass  # Можна додати логіку для наборів предметів
 
     def _init_locations(self):
         self.locations = [
             Location("Ліс", {"attack_power": 0.1, "defense": 0.0}, "Густий ліс із небезпечними істотами."),
             Location("Гори", {"defense": 0.2, "attack_power": -0.1}, "Суворий гірський ландшафт."),
-            Location("Пустеля", {"attack_power": 0.15, "mana_cost_multiplier": 0.1},
-                     "Спекотна пустеля з піщаними бурями.")
+            Location("Пустеля", {"attack_power": 0.15, "mana_cost_multiplier": 0.1}, "Спекотна пустеля з піщаними бурями.")
         ]
         self.current_location = self.locations[0]
 
@@ -740,40 +710,16 @@ class Game:
 
     def _init_factions(self):
         self.factions = [
-            Faction(
-                "Лицарі",
-                {"Маги": 0.5, "Торговці": 0.7},
-                {"discount": 0.1, "attack_power": 0.05}
-            ),
-            Faction(
-                "Маги",
-                {"Лицарі": 0.5, "Торговці": 0.6},
-                {"magic_power": 0.1, "mana_cost_multiplier": -0.1}
-            ),
-            Faction(
-                "Торговці",
-                {"Лицарі": 0.7, "Маги": 0.6},
-                {"discount": 0.2, "gold_bonus": 0.1}
-            )
+            Faction("Лицарі", {"Маги": 0.5, "Торговці": 0.7}, {"discount": 0.1, "attack_power": 0.05}),
+            Faction("Маги", {"Лицарі": 0.5, "Торговці": 0.6}, {"magic_power": 0.1, "mana_cost_multiplier": -0.1}),
+            Faction("Торговці", {"Лицарі": 0.7, "Маги": 0.6}, {"discount": 0.2, "gold_bonus": 0.1})
         ]
 
     def _init_elemental_effects(self):
         self.elemental_effects = [
-            ElementalEffect(
-                "Пара",
-                [DamageType.FIRE, DamageType.ICE],
-                Effect(EffectType.STUN, 2, 0)
-            ),
-            ElementalEffect(
-                "Вибух",
-                [DamageType.FIRE, DamageType.PHYSICAL],
-                Effect(EffectType.BURN, 3, 5)
-            ),
-            ElementalEffect(
-                "Отруйна хмара",
-                [DamageType.POISON, DamageType.MAGICAL],
-                Effect(EffectType.POISON, 3, 7)
-            )
+            ElementalEffect("Пара", [DamageType.FIRE, DamageType.ICE], Effect(EffectType.STUN, 2, 0)),
+            ElementalEffect("Вибух", [DamageType.FIRE, DamageType.PHYSICAL], Effect(EffectType.BURN, 3, 5)),
+            ElementalEffect("Отруйна хмара", [DamageType.POISON, DamageType.MAGICAL], Effect(EffectType.POISON, 3, 7))
         ]
 
     def _init_dynamic_events(self):
@@ -796,8 +742,7 @@ class Game:
                 "Магічний шторм",
                 "Гроза викликає магічні перешкоди!",
                 lambda game: game.weather_system.current_weather == WeatherType.STORM,
-                lambda game: [c.apply_effect(Effect(EffectType.STUN, 1, 0)) for c in game.characters if
-                              c.char_class == CharacterClass.MAGE],
+                lambda game: [c.apply_effect(Effect(EffectType.STUN, 1, 0)) for c in game.characters if c.char_class == CharacterClass.MAGE],
                 "Пустеля"
             )
         ]
@@ -815,6 +760,93 @@ class Game:
                 Item("Крижаний щит", ItemType.ARMOR, 12, 180, ItemQuality.EPIC, damage_type=DamageType.ICE)
             )
         ]
+
+    def save_game(self, filename="game_save.json"):
+        try:
+            game_state = {
+                "characters": [char.to_dict() for char in self.characters],
+                "teams": {k: [char.nickname for char in team] for k, team in self.teams.items()},
+                "quests": [quest.to_dict() for quest in self.quests],
+                "weather_system": self.weather_system.to_dict(),
+                "current_round": self.current_round,
+                "day": self.day,
+                "difficulty": self.difficulty,
+                "current_location": self.current_location.to_dict() if self.current_location else None,
+                "guilds": [guild.to_dict() for guild in self.guilds],
+                "factions": [faction.to_dict() for faction in self.factions],
+                "guild_wars": [war.to_dict() for war in self.guild_wars],
+                "elemental_effects": [effect.to_dict() for effect in self.elemental_effects],
+                "dynamic_events": [event.to_dict() for event in self.dynamic_events],
+                "crafting_recipes": [recipe.to_dict() for recipe in self.crafting_recipes],
+                "locations": [loc.to_dict() for loc in getattr(self, 'locations', [])]
+            }
+
+            def default_serializer(obj):
+                if isinstance(obj, Enum):
+                    return obj.name
+                elif hasattr(obj, 'to_dict'):
+                    return obj.to_dict()
+                elif hasattr(obj, '__dict__'):
+                    return {k: v for k, v in obj.__dict__.items() if not k.startswith('_')}
+                return str(obj)
+
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(game_state, f, ensure_ascii=False, indent=2, default=default_serializer)
+
+            print(f"Гру збережено у файл {filename}!")
+            return True
+        except Exception as e:
+            print(f"Помилка при збереженні гри: {e}")
+            return False
+
+    def load_game(self, filename="game_save.json"):
+        try:
+            if not os.path.exists(filename):
+                print(f"Файл збереження {filename} не знайдено!")
+                return False
+
+            with open(filename, 'r', encoding='utf-8') as f:
+                game_state = json.load(f)
+
+            self.characters = [Character.from_dict(char) for char in game_state["characters"]]
+            self.teams = {
+                k: [next(c for c in self.characters if c.nickname == nick) for nick in team]
+                for k, team in game_state["teams"].items()
+            }
+            self.quests = [Quest.from_dict(quest) for quest in game_state["quests"]]
+
+            for char in self.characters:
+                char.active_quests = [next(q for q in self.quests if q.id == qid) for qid in char.to_dict()["active_quests"]]
+
+            self.weather_system.from_dict(game_state["weather_system"])
+            self.current_round = game_state["current_round"]
+            self.day = game_state["day"]
+            self.difficulty = game_state["difficulty"]
+
+            if game_state["current_location"]:
+                self.current_location = next(
+                    (loc for loc in self.locations if loc.name == game_state["current_location"]["name"]),
+                    None
+                )
+
+            self.guilds = [Guild.from_dict(guild) for guild in game_state["guilds"]]
+            for guild, guild_data in zip(self.guilds, game_state["guilds"]):
+                guild.members = [next(c for c in self.characters if c.nickname == nick) for nick in guild_data["members"]]
+
+            self.factions = [Faction.from_dict(faction) for faction in game_state["factions"]]
+            self.guild_wars = [GuildWar.from_dict(war, self.guilds) for war in game_state["guild_wars"]]
+            self.elemental_effects = [ElementalEffect.from_dict(effect) for effect in game_state["elemental_effects"]]
+            self.dynamic_events = [DynamicEvent.from_dict(event) for event in game_state["dynamic_events"]]
+            self.crafting_recipes = [CraftingRecipe.from_dict(recipe) for recipe in game_state["crafting_recipes"]]
+
+            if "locations" in game_state:
+                self.locations = [Location.from_dict(loc) for loc in game_state["locations"]]
+
+            print(f"Гру завантажено з файлу {filename}!")
+            return True
+        except Exception as e:
+            print(f"Помилка при завантаженні гри: {e}")
+            return False
 
     def create_character(self):
         try:
@@ -924,8 +956,7 @@ class Game:
         if random.random() > 0.9:
             item_set = random.choice([self.warrior_set, self.mage_set])
 
-        damage_type = random.choice(
-            [DamageType.PHYSICAL, DamageType.FIRE, DamageType.ICE, DamageType.POISON, DamageType.MAGICAL])
+        damage_type = random.choice([DamageType.PHYSICAL, DamageType.FIRE, DamageType.ICE, DamageType.POISON, DamageType.MAGICAL])
 
         prefixes = {
             DamageType.FIRE: "Вогняний",
@@ -978,10 +1009,10 @@ class Game:
                 else:
                     print("Некоректний вибір!")
             except (ValueError, EOFError):
-                print("Помилка введення. Пропуск.")
+                print("Помилка введення. Продовжуємо формування.")
 
     def apply_weather_effects(self):
-        effects = self.weather_system.get_weather_effects()
+        effects = self.weather_system.weather_effects[self.weather_system.current_weather]
         for character in self.characters:
             for stat, value in effects.items():
                 current_value = getattr(character, stat, 0)
@@ -1042,8 +1073,8 @@ class Game:
                         if item.item_type == ItemType.POTION:
                             return character.use_item(item)
                         else:
-                            if character.equip_item(item):
-                                return False
+                            character.equip_item(item)
+                            return False
                     print("Некоректний номер!")
                 elif choice == 4:
                     self.show_character_status(character)
@@ -1062,6 +1093,8 @@ class Game:
             return
         if any(e.effect_type == EffectType.FREEZE for e in enemy.active_effects):
             print(f"{enemy.nickname} заморожений і пропускає хід!")
+            return
+        if not targets:
             return
         target = random.choice(targets)
         if random.random() < 0.5 and enemy.skills:
@@ -1091,7 +1124,10 @@ class Game:
         team1, team2 = teams[0], teams[1]
         while team1 and team2:
             print(f"\nРаунд {self.current_round}")
-            for character in team1:
+            # Player turns
+            for character in team1[:]:
+                if not team2:
+                    break
                 if character.hp > 0:
                     self.player_turn(character, team2)
                     for c in team2[:]:
@@ -1101,13 +1137,17 @@ class Game:
                             for quest in character.active_quests:
                                 if "enemies_defeated" in quest.objectives:
                                     quest.update_progress("enemies_defeated")
-            for enemy in team2:
+            # Enemy turns
+            for enemy in team2[:]:
+                if not team1:
+                    break
                 if enemy.hp > 0:
                     self.enemy_turn(enemy, team1)
                     for c in team1[:]:
                         if c.hp <= 0:
                             team1.remove(c)
                             print(f"{c.nickname} переможений!")
+            # Update effects and increment round
             for character in team1 + team2:
                 character.update_effects()
             self.current_round += 1
@@ -1127,8 +1167,7 @@ class Game:
                 if char in guild.members:
                     guild.reputation += 10
                     for quest in char.active_quests:
-                        if "guild_victory" in quest.objectives and guild in [
-                            self.teams[f"Команда {1 if winner == team1 else 2}"][0].guild for c in winner]:
+                        if "guild_victory" in quest.objectives:
                             quest.update_progress("guild_victory")
 
         for character in self.characters:
@@ -1347,8 +1386,7 @@ class Game:
                 self.factions[other_idx].update_relations(faction.name, 0.2)
                 for char in self.characters:
                     for quest in char.active_quests:
-                        if "max_relations" in quest.objectives and faction.relations[
-                            self.factions[other_idx].name] >= 1.0:
+                        if "max_relations" in quest.objectives and faction.relations[self.factions[other_idx].name] >= 1.0:
                             quest.update_progress("max_relations")
             elif choice == 3:
                 print("\nВибір фракції:")
@@ -1428,7 +1466,6 @@ class Game:
     def trigger_dynamic_event(self):
         valid_events = [event for event in self.dynamic_events if event.can_trigger(self)]
         if not valid_events:
-            print("Немає доступних подій!")
             return
         event = random.choice(valid_events)
         print(f"\nПодія: {event.name}")
@@ -1450,8 +1487,7 @@ class Game:
             character = self.characters[char_idx]
             print("\nДоступні рецепти:")
             for i, recipe in enumerate(self.crafting_recipes, 1):
-                print(
-                    f"{i}. {recipe.name} (Потрібно: {', '.join(f'{k}: {v}' for k, v in recipe.required_items.items())})")
+                print(f"{i}. {recipe.name} (Потрібно: {', '.join(f'{k}: {v}' for k, v in recipe.required_items.items())})")
             recipe_idx = int(input("Виберіть рецепт: ")) - 1
             if not (0 <= recipe_idx < len(self.crafting_recipes)):
                 print("Некоректний вибір!")
@@ -1463,186 +1499,6 @@ class Game:
                 print("Недостатньо матеріалів!")
         except (ValueError, EOFError):
             print("Помилка введення. Крафт скасовано.")
-
-    def save_game(self, filename="game_save.json"):
-        try:
-            game_state = {
-                "characters": [char.to_dict() for char in self.characters],
-                "teams": {k: [char.nickname for char in team] for k, team in self.teams.items()},
-                "quests": [quest.to_dict() for quest in self.quests],
-                "weather_system": self.weather_system.to_dict(),
-                "current_round": self.current_round,
-                "day": self.day,
-                "difficulty": self.difficulty,
-                "current_location": self.current_location.to_dict() if self.current_location else None,
-                "guilds": [guild.to_dict() for guild in self.guilds],
-                "factions": [faction.to_dict() for faction in self.factions],
-                "guild_wars": [war.to_dict() for war in self.guild_wars],
-                "elemental_effects": [effect.to_dict() for effect in self.elemental_effects],
-                "dynamic_events": [event.to_dict() for event in self.dynamic_events],
-                "crafting_recipes": [recipe.to_dict() for recipe in self.crafting_recipes]
-            }
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(game_state, f, ensure_ascii=False, indent=2)
-            print(f"Гру збережено у файл {filename}!")
-        except Exception as e:
-            print(f"Помилка при збереженні гри: {e}")
-
-    def load_game(self, filename="game_save.json"):
-        try:
-            if not os.path.exists(filename):
-                print(f"Файл збереження {filename} не знайдено!")
-                return False
-            with open(filename, 'r', encoding='utf-8') as f:
-                game_state = json.load(f)
-
-            self.characters = [Character.from_dict(char) for char in game_state["characters"]]
-            self.teams = {
-                k: [next(c for c in self.characters if c.nickname == nick) for nick in team]
-                for k, team in game_state["teams"].items()
-            }
-            self.quests = [Quest.from_dict(quest) for quest in game_state["quests"]]
-            for char in self.characters:
-                char.active_quests = [next(q for q in self.quests if q.id == qid) for qid in
-                                      char.to_dict()["active_quests"]]
-            self.weather_system.from_dict(game_state["weather_system"])
-            self.current_round = game_state["current_round"]
-            self.day = game_state["day"]
-            self.difficulty = game_state["difficulty"]
-            self.current_location = Location.from_dict(game_state["current_location"]) if game_state[
-                "current_location"] else self.locations[0]
-            self.guilds = [Guild.from_dict(guild) for guild in game_state["guilds"]]
-            for guild, guild_data in zip(self.guilds, game_state["guilds"]):
-                guild.members = [next(c for c in self.characters if c.nickname == nick) for nick in
-                                 guild_data["members"]]
-            self.factions = [Faction.from_dict(faction) for faction in game_state["factions"]]
-            self.guild_wars = [GuildWar.from_dict(war, self.guilds) for war in game_state["guild_wars"]]
-            self.elemental_effects = [ElementalEffect.from_dict(effect) for effect in game_state["elemental_effects"]]
-            self.dynamic_events = [DynamicEvent.from_dict(event) for event in game_state["dynamic_events"]]
-            self.crafting_recipes = [CraftingRecipe.from_dict(recipe) for recipe in game_state["crafting_recipes"]]
-
-            print(f"Гру завантажено з файлу {filename}!")
-            return True
-        except Exception as e:
-            print(f"Помилка при завантаженні гри: {e}")
-            return False
-
-    def main_menu(self):
-        while True:
-            print("\nГоловне меню:")
-            print("1. Створити персонажа")
-            print("2. Переглянути персонажів")
-            print("3. Магазин")
-            print("4. Формування команд")
-            print("5. Почати битву")
-            print("6. Активні квести")
-            print("7. Виконати кілька команд")
-            print("8. Зберегти гру")
-            print("9. Завантажити гру")
-            print("10. Торгівля між персонажами")
-            print("11. Встановити рівень складності")
-            print("12. Вибір локації")
-            print("13. Управління гільдіями")
-            print("14. Переглянути репутацію")
-            print("15. Управління фракціями")
-            print("16. Почати гільдійську війну")
-            print("17. Викликати подію")
-            print("18. Крафт предметів")
-            print("0. Вийти")
-            try:
-                choice = int(input("Виберіть опцію: "))
-                if choice == 0:
-                    print("Вихід з гри.")
-                    break
-                elif choice == 1:
-                    self.create_character()
-                elif choice == 2:
-                    if not self.characters:
-                        print("Немає створених персонажів!")
-                        continue
-                    print("\nСписок персонажів:")
-                    for i, character in enumerate(self.characters, 1):
-                        print(f"{i}. {character}")
-                    try:
-                        char_choice = int(input("Виберіть персонажа для деталей (0 для скасування): ")) - 1
-                        if 0 <= char_choice < len(self.characters):
-                            self.show_character_status(self.characters[char_choice])
-                    except (ValueError, EOFError):
-                        print("Помилка введення. Пропуск.")
-                elif choice == 3:
-                    if not self.characters:
-                        print("Спочатку створіть персонажа!")
-                        continue
-                    print("\nВибір персонажа для магазину:")
-                    for i, character in enumerate(self.characters, 1):
-                        print(f"{i}. {character.nickname} ({character.gold} золота)")
-                    try:
-                        char_choice = int(input("Виберіть персонажа (0 для скасування): ")) - 1
-                        if 0 <= char_choice < len(self.characters):
-                            self.shop(self.characters[char_choice])
-                    except (ValueError, EOFError):
-                        print("Помилка введення. Пропуск.")
-                elif choice == 4:
-                    if len(self.characters) < 2:
-                        print("Потрібно мінімум 2 персонажа!")
-                        continue
-                    self.team_selection()
-                elif choice == 5:
-                    if len(self.teams) < 2 or any(len(team) < 1 for team in self.teams.values()):
-                        print("Сформуйте щонайменше 2 команди з персонажами!")
-                        continue
-                    self.battle()
-                elif choice == 6:
-                    if not self.characters:
-                        print("Немає персонажів!")
-                        continue
-                    print("\nВибір персонажа:")
-                    for i, character in enumerate(self.characters, 1):
-                        print(f"{i}. {character.nickname}")
-                    try:
-                        char_idx = int(input("Виберіть персонажа: ")) - 1
-                        if 0 <= char_idx < len(self.characters):
-                            character = self.characters[char_idx]
-                            if not character.active_quests:
-                                print("Немає активних квестів!")
-                                continue
-                            print(f"\nАктивні квести для {character.nickname}:")
-                            for quest in character.active_quests:
-                                print(f"- {quest.title}: {quest.description}")
-                                for obj, goal in quest.objectives.items():
-                                    print(f"  Прогрес: {quest.progress[obj]}/{goal}")
-                        else:
-                            print("Некоректний вибір!")
-                    except (ValueError, EOFError):
-                        print("Помилка введення. Пропуск.")
-                elif choice == 7:
-                    self.execute_multiple_commands()
-                elif choice == 8:
-                    self.save_game()
-                elif choice == 9:
-                    self.load_game()
-                elif choice == 10:
-                    self.trade()
-                elif choice == 11:
-                    self.set_difficulty()
-                elif choice == 12:
-                    self.set_location()
-                elif choice == 13:
-                    self.manage_guilds()
-                elif choice == 14:
-                    self.show_reputation()
-                elif choice == 15:
-                    self.manage_factions()
-                elif choice == 16:
-                    self.start_guild_war()
-                elif choice == 17:
-                    self.trigger_dynamic_event()
-                elif choice == 18:
-                    self.craft_item()
-                else:
-                    print("Некоректний вибір!")
-            except (ValueError, EOFError):
-                print("Помилка введення. Спробуйте ще раз.")
 
     def execute_multiple_commands(self):
         print("\nВиконання кількох команд:")
@@ -1717,20 +1573,6 @@ class Game:
                     self.save_game()
                 elif command == "load":
                     self.load_game()
-                elif command == "quest" and len(args) == 1:
-                    char_idx = int(args[0]) - 1
-                    if 0 <= char_idx < len(self.characters):
-                        character = self.characters[char_idx]
-                        if not character.active_quests:
-                            print("Немає активних квестів!")
-                        else:
-                            print(f"\nАктивні квести для {character.nickname}:")
-                            for quest in character.active_quests:
-                                print(f"- {quest.title}: {quest.description}")
-                                for obj, goal in quest.objectives.items():
-                                    print(f"  Прогрес: {quest.progress[obj]}/{goal}")
-                    else:
-                        print(f"Некоректний індекс персонажа: {args[0]}")
                 elif command == "exit":
                     print("Вихід із виконання команд.")
                     break
@@ -1739,123 +1581,102 @@ class Game:
             except (ValueError, EOFError):
                 print(f"Помилка обробки команди: {cmd}")
 
-    def manage_quests(self, character: Character):
-        print(f"\nУправління квестами для {character.nickname}:")
-        print("1. Взяти квест")
-        print("2. Переглянути активні квести")
-        print("3. Завершити квест")
-        print("0. Вийти")
-        try:
-            choice = int(input("Виберіть дію: "))
-            if choice == 0:
-                return
-            elif choice == 1:
-                available_quests = [q for q in self.quests if q not in character.active_quests]
-                if not available_quests:
-                    print("Немає доступних квестів!")
-                    return
-                print("\nДоступні квести:")
-                for i, quest in enumerate(available_quests, 1):
-                    print(f"{i}. {quest.title}: {quest.description}")
-                quest_idx = int(input("Виберіть квест: ")) - 1
-                if 0 <= quest_idx < len(available_quests):
-                    character.active_quests.append(available_quests[quest_idx])
-                    print(f"{character.nickname} взяв квест '{available_quests[quest_idx].title}'!")
+    def main_menu(self):
+        while True:
+            print("\nГоловне меню:")
+            print("1. Створити персонажа")
+            print("2. Переглянути персонажів")
+            print("3. Магазин")
+            print("4. Формування команд")
+            print("5. Почати битву")
+            print("6. Торгівля між персонажами")
+            print("7. Встановити рівень складності")
+            print("8. Вибір локації")
+            print("9. Управління гільдіями")
+            print("10. Переглянути репутацію")
+            print("11. Управління фракціями")
+            print("12. Почати гільдійську війну")
+            print("13. Викликати подію")
+            print("14. Крафт предметів")
+            print("15. Виконати кілька команд")
+            print("16. Зберегти гру")
+            print("17. Завантажити гру")
+            print("0. Вийти")
+            try:
+                choice = int(input("Виберіть опцію: "))
+                if choice == 0:
+                    print("Вихід з гри.")
+                    break
+                elif choice == 1:
+                    self.create_character()
+                elif choice == 2:
+                    if not self.characters:
+                        print("Немає створених персонажів!")
+                        continue
+                    print("\nСписок персонажів:")
+                    for i, character in enumerate(self.characters, 1):
+                        print(f"{i}. {character}")
+                    try:
+                        char_choice = int(input("Виберіть персонажа для деталей (0 для скасування): ")) - 1
+                        if 0 <= char_choice < len(self.characters):
+                            self.show_character_status(self.characters[char_choice])
+                    except (ValueError, EOFError):
+                        print("Помилка введення. Пропуск.")
+                elif choice == 3:
+                    if not self.characters:
+                        print("Спочатку створіть персонажа!")
+                        continue
+                    print("\nВибір персонажа для магазину:")
+                    for i, character in enumerate(self.characters, 1):
+                        print(f"{i}. {character.nickname} ({character.gold} золота)")
+                    try:
+                        char_choice = int(input("Виберіть персонажа (0 для скасування): ")) - 1
+                        if 0 <= char_choice < len(self.characters):
+                            self.shop(self.characters[char_choice])
+                    except (ValueError, EOFError):
+                        print("Помилка введення. Пропуск.")
+                elif choice == 4:
+                    if len(self.characters) < 2:
+                        print("Потрібно мінімум 2 персонажа!")
+                        continue
+                    self.team_selection()
+                elif choice == 5:
+                    if len(self.teams) < 2 or any(len(team) < 1 for team in self.teams.values()):
+                        print("Сформуйте щонайменше 2 команди з персонажами!")
+                        continue
+                    self.battle()
+                elif choice == 6:
+                    self.trade()
+                elif choice == 7:
+                    self.set_difficulty()
+                elif choice == 8:
+                    self.set_location()
+                elif choice == 9:
+                    self.manage_guilds()
+                elif choice == 10:
+                    self.show_reputation()
+                elif choice == 11:
+                    self.manage_factions()
+                elif choice == 12:
+                    self.start_guild_war()
+                elif choice == 13:
+                    self.trigger_dynamic_event()
+                elif choice == 14:
+                    self.craft_item()
+                elif choice == 15:
+                    self.execute_multiple_commands()
+                elif choice == 16:
+                    self.save_game()
+                elif choice == 17:
+                    self.load_game()
                 else:
                     print("Некоректний вибір!")
-            elif choice == 2:
-                if not character.active_quests:
-                    print("Немає активних квестів!")
-                    return
-                print("\nАктивні квести:")
-                for quest in character.active_quests:
-                    print(f"- {quest.title}: {quest.description}")
-                    for obj, goal in quest.objectives.items():
-                        print(f"  Прогрес: {quest.progress[obj]}/{goal}")
-            elif choice == 3:
-                if not character.active_quests:
-                    print("Немає активних квестів!")
-                    return
-                print("\nАктивні квести:")
-                for i, quest in enumerate(character.active_quests, 1):
-                    print(f"{i}. {quest.title}: {quest.description}")
-                quest_idx = int(input("Виберіть квест для завершення: ")) - 1
-                if 0 <= quest_idx < len(character.active_quests):
-                    quest = character.active_quests[quest_idx]
-                    if quest.is_completed():
-                        character.gold += quest.rewards.get("gold", 0)
-                        character.add_exp(quest.rewards.get("exp", 0))
-                        if "item" in quest.rewards:
-                            character.inventory.append(quest.rewards["item"])
-                        print(
-                            f"Квест '{quest.title}' завершено! Нагороди: {quest.rewards.get('gold', 0)} золота, {quest.rewards.get('exp', 0)} досвіду")
-                        if "item" in quest.rewards:
-                            print(f"Отримано предмет: {quest.rewards['item']}")
-                        character.active_quests.pop(quest_idx)
-                    else:
-                        print("Квест ще не виконано!")
-                else:
-                    print("Некоректний вибір!")
-            else:
-                print("Некоректний вибір!")
-        except (ValueError, EOFError):
-            print("Помилка введення. Управління квестами скасовано.")
-
-    def upgrade_skill(self, character: Character):
-        print(f"\nПрокачування навичок для {character.nickname}:")
-        if not character.skills:
-            print("Немає доступних навичок!")
-            return
-        print("Доступні навички:")
-        for i, skill in enumerate(character.skills, 1):
-            print(f"{i}. {skill} (Рівень {character.skill_levels[skill]})")
-        try:
-            skill_idx = int(input("Виберіть навичку для прокачування: ")) - 1
-            if 0 <= skill_idx < len(character.skills):
-                skill = character.skills[skill_idx]
-                cost = character.skill_levels[skill] * 50
-                if character.gold >= cost:
-                    character.gold -= cost
-                    character.skill_levels[skill] += 1
-                    print(f"Навичка {skill} прокачана до рівня {character.skill_levels[skill]} за {cost} золота!")
-                else:
-                    print(f"Недостатньо золота! Потрібно: {cost}")
-            else:
-                print("Некоректний вибір!")
-        except (ValueError, EOFError):
-            print("Помилка введення. Прокачування скасовано.")
-
-    def check_achievements(self, character: Character):
-        achievements = [
-            ("Майстер бою", lambda c: c.level >= 5, {"exp": 100, "gold": 50}),
-            ("Легендарний колекціонер",
-             lambda c: sum(1 for item in c.inventory if item.quality == ItemQuality.LEGENDARY) >= 3,
-             {"exp": 200, "item": Item("Легендарний амулет", ItemType.ACCESSORY, 15, 300, ItemQuality.LEGENDARY)}),
-            ("Герой гільдії", lambda c: any(c in guild.members and guild.reputation >= 100 for guild in self.guilds),
-             {"gold": 300}),
-            ("Миротворець", lambda c: any(faction.relations.get("Лицарі", 0) >= 0.9 for faction in self.factions),
-             {"exp": 150, "gold": 200})
-        ]
-        print(f"\nДосягнення для {character.nickname}:")
-        for name, condition, rewards in achievements:
-            if condition(character):
-                print(f"Досягнення '{name}' виконано!")
-                character.add_exp(rewards.get("exp", 0))
-                character.gold += rewards.get("gold", 0)
-                if "item" in rewards:
-                    character.inventory.append(rewards["item"])
-                    print(f"Отримано предмет: {rewards['item']}")
-            else:
-                print(f"Досягнення '{name}' ще не виконано.")
+            except (ValueError, EOFError):
+                print("Помилка введення. Спробуйте ще раз.")
 
     def run(self):
         print("Ласкаво просимо до гри!")
-        while True:
-            self.main_menu()
-            if not any(input("Натисніть Enter для продовження або 'q' для виходу: ").lower() == 'q' for _ in [1]):
-                continue
-            break
-
+        self.main_menu()
 
 if __name__ == "__main__":
     game = Game()
