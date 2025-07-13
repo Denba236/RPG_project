@@ -1,5 +1,4 @@
-# RPG_project
-🧙‍♂️ RPG Mini Project
+# 🧙‍♂️ RPG Mini Project
 This is a console-based RPG game written in Python. Players can create characters, form guilds, complete quests, craft items, engage in battles, and interact with factions, weather, and dynamic events.
 
 🔥 Features
